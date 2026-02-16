@@ -1,0 +1,18 @@
+{
+    "config":[
+        {
+        "random_state":22,
+        "model":"lr",
+        "scaling":"robust",
+        "test_size":0.2,
+        "epoch":1000,
+        "feature_method":"rfe",
+        "n_features_to_selection":20
+        }
+    ],
+    "mlp":[
+        {
+        "lr":0.1
+        }
+    ]
+}   
