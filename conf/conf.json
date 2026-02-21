@@ -2,17 +2,29 @@
     "config":[
         {
         "random_state":22,
-        "model":"lr",
+        "model":"ls",
         "scaling":"robust",
         "test_size":0.2,
-        "epoch":1000,
+        "epoch":100,
         "feature_method":"rfe",
         "n_features_to_selection":20
         }
     ],
-    "mlp":[
+    "n_network":[
         {
-        "lr":0.1
+        "lr":0.1,
+        "optimalisation":"ADAM",
+        "output_dim":1
+        }
+    ],
+    "linear":[
+        {
+        "early_stopping":"True",
+        "learning_rate":"optimal",
+        "l1_ratio":0.15,
+        "class_weight":"balanced",
+        "c":0.1,
+        "penalty":"l2"
         }
     ]
 }   
