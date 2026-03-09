@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.optim as optim
 
 
+import numpy as np
+
+
 from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn.linear_model import Lasso
@@ -20,14 +23,16 @@ def lr_model(
         random_state: int,
         class_weight: str,
         C: float,
-        penalty: str
+        penalty,
+        solver
 ):
     return LogisticRegression(
         max_iter=max_iter,
         random_state=random_state,
         class_weight=class_weight,
         C=C,
-        penalty=penalty
+        penalty=penalty,
+        solver=solver
     )
 ##==============================================================##
 
@@ -35,16 +40,16 @@ def lr_model(
 ##==============================================================##
 ## MLP
 ##==============================================================##
-class mlp(nn.Module):
+class MLP(nn.Module):
     def __init__(self,
                  input_size: int,
                  output_size: int):
-        super(mlp, self).__init__()
+        super().__init__()
         self.layer = nn.Sequential(
             #----------------------------- vrstva 1
             nn.Linear(input_size, 64),
             nn.BatchNorm1d(64),
-            nn.ReLU(),      #! sem asi leaky ReLU
+            nn.LeakyReLU(),
             #----------------------------- vrstva 2 H
             nn.Linear(64, 32),
             nn.BatchNorm1d(32),
@@ -52,7 +57,7 @@ class mlp(nn.Module):
             #----------------------------- vrstva 3 H
             nn.Linear(32, 16),
             nn.BatchNorm1d(16),
-            nn.ReLU(),
+            nn.LeakyReLU(),
             #----------------------------- vrstva 4
             nn.Linear(16, output_size)
         )
@@ -65,16 +70,71 @@ class mlp(nn.Module):
     
     def forward(self, x):
             return self.layer(x)
-
-
-def mlp_model(input_dim: int,
-              output_dim: int,
-              lr: float):
-    mlp_model = mlp(input_size=input_dim,
-                    output_size=output_dim)
     
-    criterion = nn.BCEWithLogitsLoss()  #? Ake ine funkcie viem pouzit? 
-    optimization = optim.Adam(mlp_model.parameters(), lr=lr)
+##~~~~~~~~~~~~~~~~~~~~~~~~~Wrapper~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~##
+class Wrapper_MLP(BaseEstimator, ClassifierMixin):
+    def __init__(self,
+                 output_dim: int,
+                 lr: float,
+                 epochs: int):
+        self.output_dim = output_dim
+        self.lr = lr
+        self.epochs = epochs
+    
+    def fit(self, X, y):
+        X = np.array(X, dtype=np.float32)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        y = np.array(y, dtype=np.float32).reshape(-1, 1)
+
+        input_dim = X.shape[1]
+
+        X = torch.tensor(X, dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.float32)
+
+        ##-----------------
+        self.model_ = MLP(input_dim, self.output_dim)
+        self.criterion_ = nn.BCEWithLogitsLoss()
+        self.optimizer_ = torch.optim.Adam(self.model_.parameters(), lr=self.lr)
+        #self.optimizer_ = torch.optim.SGD(self.model_.parameters(), lr=self.lr)
+        ##-----------------
+
+        self.model_.train()
+        for _ in range(self.epochs):
+            self.optimizer_.zero_grad()
+            outputs = self.model_(X)
+            loss = self.criterion_(outputs, y)
+            loss.backward()
+            self.optimizer_.step()
+
+        return self
+    
+    def predict(self, X):
+        X = np.array(X, dtype=np.float32)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        X = torch.tensor(X, dtype=torch.float32)
+
+        self.model_.eval()
+        with torch.no_grad():
+            logits = self.model_(X)
+            probs = torch.sigmoid(logits)
+
+        return (probs > 0.5).int().numpy().ravel()
+
+    def predict_proba(self, X):
+        X = np.array(X, dtype=np.float32)
+        if X.ndim == 1:
+            X = X.reshape(-1, 1)
+        X = torch.tensor(X, dtype=torch.float32)
+
+        self.model_.eval()
+        with torch.no_grad():
+            logits = self.model_(X)
+            probs = torch.sigmoid(logits)
+
+        probs = probs.numpy()
+        return np.hstack([1 - probs, probs])
 
 ##==============================================================##
 ## SGD

@@ -1,18 +1,19 @@
 {
     "config":[
         {
-        "random_state":22,
-        "model":"ls",
-        "scaling":"robust",
-        "test_size":0.2,
-        "epoch":100,
+        "random_state":3,
+        "model":"lr",
+        "scaling":"standard",
+        "test_size":0.3,
+        "epoch":1000,
         "feature_method":"rfe",
-        "n_features_to_selection":20
+        "n_features_to_selection":20,
+        "n_splits":9
         }
     ],
     "n_network":[
         {
-        "lr":0.1,
+        "lr":0.01,
         "optimalisation":"ADAM",
         "output_dim":1
         }
@@ -23,8 +24,9 @@
         "learning_rate":"optimal",
         "l1_ratio":0.15,
         "class_weight":"balanced",
-        "c":0.1,
-        "penalty":"l2"
+        "c":0.7,
+        "penalty":"l2",
+        "solver":"lbfgs"
         }
     ]
-}   
+}
