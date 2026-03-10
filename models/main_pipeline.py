@@ -67,22 +67,22 @@ def get_oof_score(pipeline, X, y, cv):
 
 ## ----- Main -----
 if __name__ == "__main__":
+    ### ==== Nacitanie datastu ====
     conf_path: str = "conf/conf.json"
     df_path: str = "data/clean_ds.xlsx"
-
-    # --- dataframe ---
     df = pd.read_excel(df_path)
 
 
-    # --- JSON ---
+    ### ==== Nacitanie configuracneho suboru ====
     with open(conf_path, 'r') as file:
         data = json.load(file)
-
-    #print(json.dumps(data))
 
     config: dict = data["config"][0]
     n_netwrok: dict = data["n_network"][0]
     linear: dict = data["linear"][0]
+
+
+
 
     ## Rozdelenie datasetu
     X = df.drop('referred_CXL',
@@ -124,104 +124,134 @@ if __name__ == "__main__":
     solver: str = linear["solver"]
 
     model_configs: dict = {
-        "conf1":(1, "l2"),
-        "conf2":(0.1, "l2"),
-        "conf3":(10, "l2"),
+        "conf1":(1, "l2", {0: 1.5, 1:1.0}),
+        "conf2":(0.1, "l2", {0: 1.5, 1:1.0}),
+        "conf3":(10, "l2", {0: 1.5, 1:1.0}),
         "conf4":(1, "l2", "balanced"),
-        "conf5":(10, "l2", "balanced"),
-        "conf6":(0.1, "l1"),
-        "conf7":(1, "l1"),
-        "conf8":(10, "l1"),
-        "conf9":(1, "l1", "balanced"),
-        "conf10":(10, "l1", "balanced")
+        "conf5":(0.1, "l2", "balanced"),
+        "conf6":(10, "l2", "balanced"),
+        "conf7":(1, "l1", {0: 1.5, 1:1.0}),
+        "conf8":(0.1, "l1", {0: 1.5, 1:1.0}),
+        "conf9":(10, "l1", {0: 1.5, 1:1.0}),
+        "conf10":(1, "l1", "balanced"),
+        "conf11":(10, "l1", "balanced")
     }
+    roc_results = {}
+    pr_results = {}
 
     #class_weights: dict = {0: 1.5,
     #                       1: 1.0}
 
+    for name, (C, penalty, class_weights) in model_configs.items():
 
-    ## preklad / vyber modelu
-    models_dict: dict = {
-        "lr": lr_model(max_iter=max_iter,
-                    random_state=random_state,
-                    class_weight=class_weights,
-                    C=c,
-                    penalty=penalty,
-                    solver=solver),
-        "mlp": Wrapper_MLP(output_dim=output_dim,
-                        lr=lr,
-                        epochs=max_iter),
-        "sgd": sgd_model(max_iter=max_iter,
+        solver = "liblinear" if penalty == "l1" else "lbfgs"
+
+        ## preklad / vyber modelu
+        models_dict: dict = {
+            "lr": lr_model(max_iter=max_iter,
                         random_state=random_state,
-                        learning_rate=learning_rate,
-                        early_stopping=early_stopping,
                         class_weight=class_weights,
-                        l1_ratio=l1_ratio),
-        "lasso": lasso_model(max_iter=max_iter,
-                            random_state=random_state)
-    }
+                        C=c,
+                        penalty=penalty,
+                        solver=solver),
+            "mlp": Wrapper_MLP(output_dim=output_dim,
+                            lr=lr,
+                            epochs=max_iter),
+            "sgd": sgd_model(max_iter=max_iter,
+                            random_state=random_state,
+                            learning_rate=learning_rate,
+                            early_stopping=early_stopping,
+                            class_weight=class_weights,
+                            l1_ratio=l1_ratio),
+            "lasso": lasso_model(max_iter=max_iter,
+                                random_state=random_state)
+        }
 
-    # aplikacia modelu
-    model = models_dict[model_type]
+        # aplikacia modelu
+        model = models_dict[model_type]
 
-    f2_score = make_scorer(fbeta_score, beta=2)
+        """f2_score = make_scorer(fbeta_score, beta=2)
 
-    eval_metrics: dict = {
-        "accuracy": "accuracy",
-        "precision": "precision",
-        "recall": "recall",
-        "recall_weighted": "recall_weighted",
-        "roc_auc": "roc_auc",
-        "f2_score": f2_score
-    }
-
-
-    ## Pipeline
-    if model_type == "mlp":
-        pipeline = Pipeline([
-            ("scaler", scaler),
-            ("classifier", model)
-        ])
-    else:
-        pipeline = Pipeline([
-            ("scaler", scaler),
-            ("feature_selection", RFE(
-                estimator=model,
-                n_features_to_select=n_features_to_selection
-
-            )),
-            ("classifier", model)
-        ])
+        eval_metrics: dict = {
+            "accuracy": "accuracy",
+            "precision": "precision",
+            "recall": "recall",
+            "recall_weighted": "recall_weighted",
+            "roc_auc": "roc_auc",
+            "f2_score": f2_score
+        }"""
 
 
+        ## Pipeline
+        if model_type == "mlp":
+            pipeline = Pipeline([
+                ("scaler", scaler),
+                ("classifier", model)
+            ])
+        else:
+            pipeline = Pipeline([
+                ("scaler", scaler),
+                ("feature_selection", RFE(
+                    estimator=model,
+                    n_features_to_select=n_features_to_selection
 
-    cv = StratifiedKFold(n_splits=n_splits,
-                        shuffle=True,
-                        random_state=random_state
-                        )
-    predict_results = cross_validate(pipeline,
-                            X,
-                            y,
-                            cv=cv,
-                            scoring=eval_metrics
+                )),
+                ("classifier", model)
+            ])
+
+
+
+        cv = StratifiedKFold(n_splits=n_splits,
+                            shuffle=True,
+                            random_state=random_state
                             )
+        predict_results = cross_validate(pipeline,
+                                X,
+                                y,
+                                cv=cv,
+                                #scoring=eval_metrics
+                                )
+        
+        y_scores = get_oof_score(pipeline=pipeline,
+                                X=X,
+                                y=y,
+                                cv=cv)
+        fpr, tpr, _ = roc_curve(y, y_scores)
+        precision, recall, _ = precision_recall_curve(y, y_scores)
+
+        roc_results[name] = (fpr, tpr)
+        pr_results[name] = (precision, recall)
     
-    y_scores = get_oof_score(pipeline=pipeline,
-                             X=X,
-                             y=y,
-                             cv=cv)
-    fpr, tpr, roc_threshold = roc_curve(y, y_scores)
+
+
+    """fpr, tpr, roc_threshold = roc_curve(y, y_scores)
     precision, recall, pr_threshold = precision_recall_curve(y, y_scores)
     RocCurveDisplay(fpr=fpr, tpr=tpr).plot()
     plt.show()
     PrecisionRecallDisplay(precision=precision,
                            recall=recall).plot()
+    plt.show()"""
+
+    for name, (fpr, tpr) in roc_results.items():
+        plt.plot(fpr, tpr, label=name)
+    plt.xlabel("False Positve Rate (FPR)")
+    plt.ylabel("True Positive Rate (TPR)")
+    plt.title("ROC Curve")
+    plt.legend()
     plt.show()
 
-    print(predict_results)
+    for name, (precision, recall) in pr_results.items():
+        plt.plot(recall, precision, label=name)
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Precision-Revall Curve")
+    plt.legend()
+    plt.show()
+
+    #print(predict_results)
 
     ## Evaluacia
-    acc = predict_results["test_accuracy"].mean() * 100
+    """acc = predict_results["test_accuracy"].mean() * 100
     prec = predict_results["test_precision"].mean() * 100
     rec = predict_results["test_recall"].mean() * 100
     rec_weig = predict_results["test_recall_weighted"].mean() * 100
@@ -233,4 +263,4 @@ if __name__ == "__main__":
     print(f"Recall: {rec:.2f}%")
     print(f"Recall Weighted: {rec_weig:.2f}%")
     print(f"ROC AUC: {roc_auc:.2f}%")
-    print(f"f2 score: {f2_sc:.2f}%")
+    print(f"f2 score: {f2_sc:.2f}%")"""

@@ -8,7 +8,8 @@
         "epoch":1000,
         "feature_method":"rfe",
         "n_features_to_selection":20,
-        "n_splits":9
+        "n_splits":9,
+        "n_tests":"false"
         }
     ],
     "n_network":[
@@ -28,5 +29,14 @@
         "penalty":"l2",
         "solver":"lbfgs"
         }
+    ],
+    "neighbours":[
+
+    ],
+    "tree":[
+
+    ],
+    "n_tests":[
+
     ]
 }
