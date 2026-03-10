@@ -10,6 +10,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.linear_model import SGDClassifier
 from sklearn.linear_model import Lasso
 
+from sklearn.neighbors import KNeighborsClassifier
+
+from sklearn.ensemble import RandomForestClassifier
+
 
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
@@ -137,31 +141,25 @@ class Wrapper_MLP(BaseEstimator, ClassifierMixin):
         return np.hstack([1 - probs, probs])
 
 ##==============================================================##
-## SGD
+## KNN
 ##==============================================================##
-def sgd_model(
-          max_iter: int,
-          random_state: int,
-          learning_rate: str,
-          early_stopping: bool,
-          class_weight,
-          l1_ratio: float
-          ):
-     return SGDClassifier(max_iter=max_iter,
-                          random_state=random_state,
-                          learning_rate=learning_rate,
-                          early_stopping=early_stopping,
-                          class_weight=class_weight,
-                          l1_ratio=l1_ratio
-                          )
+def knn(weights: str | None,
+        algorithm: str,
+        leaf_size: int,
+        p: float):
+    return KNeighborsClassifier(weights=weights,        #type: ignore
+                                algorithm=algorithm,    #type: ignore
+                                leaf_size=leaf_size,
+                                p=p)                    #type: ignore
 
 ##==============================================================##
-## Lasso
+## Random Forest
 ##==============================================================##
-def lasso_model(max_iter: int,
-                random_state: int
-                ):
-     return Lasso(
-          max_iter=max_iter,
-          random_state=random_state
-     )
+def random_forest(n_estimators: int,
+                  criterion: str,
+                  max_depth: int,
+                  class_weight: str | None):
+    return RandomForestClassifier(n_estimators=n_estimators,
+                                  criterion=criterion,  #type: ignore
+                                  max_depth=max_depth,
+                                  class_weight=class_weight) #type: ignore

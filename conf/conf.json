@@ -9,34 +9,53 @@
         "feature_method":"rfe",
         "n_features_to_selection":20,
         "n_splits":9,
+        "class_weight":"balanced",
         "n_tests":"false"
         }
     ],
-    "n_network":[
+    "mlp_conf":[
         {
         "lr":0.01,
-        "optimalisation":"ADAM",
-        "output_dim":1
+        "optimalisation":"ADAM"
         }
     ],
-    "linear":[
+    "linear_regression_conf":[
         {
-        "early_stopping":"True",
-        "learning_rate":"optimal",
-        "l1_ratio":0.15,
-        "class_weight":"balanced",
         "c":0.7,
         "penalty":"l2",
         "solver":"lbfgs"
         }
     ],
-    "neighbours":[
-
+    "knn_conf":[
+        {
+        "weights":"",
+        "algorithm":"",
+        "leaf_size":"",
+        "p":""
+        }
     ],
-    "tree":[
-
+    "random_forest_conf":[
+        {
+        "n_estimators":"",
+        "criterion":"",
+        "max_depth":"",
+        "class_weight":""
+        }
     ],
     "n_tests":[
-
+        {
+        "conf1":["lr", 1, "l2", {"0":1.5, "1":1.0}],
+        "conf2":["lr", 0.1, "l2", {"0":1.5, "1":1.0}],
+        "conf3":["lr", 10, "l2", {"0":1.5, "1":1.0}],
+        "conf4":["lr", 1, "l2", "balanced"],
+        "conf5":["lr", 0.1, "l2", "balanced"],
+        "conf6":["lr", 10, "l2", "balanced"],
+        "conf7":["lr", 1, "l1", {"0":1.5, "1":1.0}],
+        "conf8":["lr", 0.1, "l1", {"0":1.5, "1":1.0}],
+        "conf9":["lr", 10, "l1", {"0":1.5, "1":1.0}],
+        "conf10":["lr", 1, "l1", "balanced"],
+        "conf11":["lr", 0.1, "l1", "balanced"],
+        "conf12":["lr", 10, "l1", "balanced"]
+        }
     ]
 }

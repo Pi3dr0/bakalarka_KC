@@ -44,8 +44,8 @@ from src.prerocessing import get_scalar
 from src.prerocessing import scale_df
 from src.models import lr_model
 from src.models import Wrapper_MLP
-from src.models import sgd_model
-from src.models import lasso_model
+from src.models import knn
+from src.models import random_forest
 
 
 from src.feature_selection import *
@@ -67,27 +67,80 @@ def get_oof_score(pipeline, X, y, cv):
 
 ## ----- Main -----
 if __name__ == "__main__":
-    ### ==== Nacitanie datastu ====
-    conf_path: str = "conf/conf.json"
+    ### ======================
+    ### ==== Load dataset ====
+    ### ======================
     df_path: str = "data/clean_ds.xlsx"
     df = pd.read_excel(df_path)
 
 
-    ### ==== Nacitanie configuracneho suboru ====
+    ### ====================================
+    ### ==== Load data from config file ====
+    ### ====================================
+    conf_path: str = "conf/conf.json"
     with open(conf_path, 'r') as file:
         data = json.load(file)
 
     config: dict = data["config"][0]
-    n_netwrok: dict = data["n_network"][0]
-    linear: dict = data["linear"][0]
+    mlp_conf: dict = data["mlp_conf"][0]
+    linear_regression_conf: dict = data["linear_regression_conf"][0]
+    knn_conf: dict = data["knn_conf"][0]
+    random_forest_conf: dict = data["random_forest_conf"][0]
+    
+    ## Config <-----
+    max_iter: int = config["epoch"]
+    random_state: int = config["random_state"]
+    model_type: str = config["model"]
+    n_features_to_selection: int = config["n_features_to_selection"]
+    n_splits: int = config["n_splits"]
+    class_weights = config["class_weight"]
+    n_tests: str = config["n_tests"]
+
+    ## Neural Network <-----
+    lr: float = mlp_conf["lr"]
+    optimalisation: str = mlp_conf["optimalisation"]
+    output_dim: int = 1
+    input_dim: int = 57 #20 #58
+
+    ## Linear <-----
+    c: float = linear_regression_conf["c"]
+    penalty: str = linear_regression_conf["penalty"]
+    solver: str = linear_regression_conf["solver"]
+
+    ## Neighbours <-----
+    weights: str | None = knn_conf["weights"]
+    algorithm: str = knn_conf["algorithm"]
+    leaf_size: int = knn_conf["leaf_size"]
+    paaa: float = knn_conf["p"]
+
+    ## Random Forest <-----
+    n_estimators: int = random_forest_conf["n_estimators"]
+    criterion: str = random_forest_conf["criterion"]
+    max_depth: int = random_forest_conf["max_depth"]
+
+    ## n_tests <-----
+    model_configs: dict = data["n_tests"][0]
+    model_configs_fixed: dict = {}
+
+    for test_name, params in model_configs.items():
+        fixed_params: list = []
+        for p in params:
+            if isinstance(p, dict):
+                p_fixed = {int(k): v for k, v in p.items()}
+            else:
+                p_fixed = p
+            fixed_params.append(p_fixed)
+        model_configs_fixed[test_name] = fixed_params
+    model_configs = model_configs_fixed
+    roc_results = {}
+    pr_results = {}
 
 
-
-
-    ## Rozdelenie datasetu
+    ### ==========================
+    ### ==== Train Test split ====
+    ### ==========================
     X = df.drop('referred_CXL',
-            axis=1
-            )
+                axis=1)
     y = df.referred_CXL
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -97,52 +150,19 @@ if __name__ == "__main__":
         random_state=config["random_state"]
         )
 
-    ## Data Scaleing
-    # --- scale ---
+
+    ### ===========================================
+    ### ==== Application of the scaling method ====
+    ### ===========================================
     scaler = get_scalar(config["scaling"])
-    #X_train_scaled, X_test_scaled = scale_df(X_train, X_test, scalar)
 
 
-    ## premenne
-    max_iter: int = config["epoch"]
-    random_state: int = config["random_state"]
-    model_type: str = config["model"]
-    n_features_to_selection: int = config["n_features_to_selection"]
-    n_splits: int = config["n_splits"]
+    ### 
+    ### 
+    ###
+    for test_name, params in model_configs.items():
 
-    input_dim: int = 57 #20 #58
-    output_dim: int = n_netwrok["output_dim"]
-    lr: float = n_netwrok["lr"]
-
-    # Linear model configuration
-    early_stopping: bool = bool(linear["early_stopping"])
-    learning_rate: str = linear["learning_rate"]
-    l1_ratio: float = linear["l1_ratio"]
-    class_weights = linear["class_weight"]
-    c: float = linear["c"]
-    penalty: str = linear["penalty"]
-    solver: str = linear["solver"]
-
-    model_configs: dict = {
-        "conf1":(1, "l2", {0: 1.5, 1:1.0}),
-        "conf2":(0.1, "l2", {0: 1.5, 1:1.0}),
-        "conf3":(10, "l2", {0: 1.5, 1:1.0}),
-        "conf4":(1, "l2", "balanced"),
-        "conf5":(0.1, "l2", "balanced"),
-        "conf6":(10, "l2", "balanced"),
-        "conf7":(1, "l1", {0: 1.5, 1:1.0}),
-        "conf8":(0.1, "l1", {0: 1.5, 1:1.0}),
-        "conf9":(10, "l1", {0: 1.5, 1:1.0}),
-        "conf10":(1, "l1", "balanced"),
-        "conf11":(10, "l1", "balanced")
-    }
-    roc_results = {}
-    pr_results = {}
-
-    #class_weights: dict = {0: 1.5,
-    #                       1: 1.0}
-
-    for name, (C, penalty, class_weights) in model_configs.items():
+        model_type = params[0]
 
         solver = "liblinear" if penalty == "l1" else "lbfgs"
 
@@ -150,21 +170,21 @@ if __name__ == "__main__":
         models_dict: dict = {
             "lr": lr_model(max_iter=max_iter,
                         random_state=random_state,
-                        class_weight=class_weights,
-                        C=c,
+                        class_weight=params[3],
+                        C=params[1],
                         penalty=penalty,
                         solver=solver),
             "mlp": Wrapper_MLP(output_dim=output_dim,
                             lr=lr,
                             epochs=max_iter),
-            "sgd": sgd_model(max_iter=max_iter,
-                            random_state=random_state,
-                            learning_rate=learning_rate,
-                            early_stopping=early_stopping,
-                            class_weight=class_weights,
-                            l1_ratio=l1_ratio),
-            "lasso": lasso_model(max_iter=max_iter,
-                                random_state=random_state)
+            "knn": knn(weights=weights,
+                       algorithm=algorithm,
+                       leaf_size=leaf_size,
+                       p=paaa),
+            "rf": random_forest(n_estimators=n_estimators,
+                                criterion=criterion,
+                                max_depth=max_depth,
+                                class_weight=class_weights)
         }
 
         # aplikacia modelu
@@ -219,8 +239,8 @@ if __name__ == "__main__":
         fpr, tpr, _ = roc_curve(y, y_scores)
         precision, recall, _ = precision_recall_curve(y, y_scores)
 
-        roc_results[name] = (fpr, tpr)
-        pr_results[name] = (precision, recall)
+        roc_results[test_name] = (fpr, tpr)
+        pr_results[test_name] = (precision, recall)
     
 
 
