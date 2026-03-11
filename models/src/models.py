@@ -27,7 +27,7 @@ def lr_model(
         random_state: int,
         class_weight: str,
         C: float,
-        penalty,
+        penalty: str | None,
         solver
 ):
     return LogisticRegression(
@@ -35,7 +35,7 @@ def lr_model(
         random_state=random_state,
         class_weight=class_weight,
         C=C,
-        penalty=penalty,
+        penalty=penalty,    #type: ignore
         solver=solver
     )
 ##==============================================================##
@@ -143,11 +143,13 @@ class Wrapper_MLP(BaseEstimator, ClassifierMixin):
 ##==============================================================##
 ## KNN
 ##==============================================================##
-def knn(weights: str | None,
+def knn(n_neighbors,
+        weights: str | None,
         algorithm: str,
         leaf_size: int,
         p: float):
-    return KNeighborsClassifier(weights=weights,        #type: ignore
+    return KNeighborsClassifier(n_neighbors=n_neighbors,
+                                weights=weights,        #type: ignore
                                 algorithm=algorithm,    #type: ignore
                                 leaf_size=leaf_size,
                                 p=p)                    #type: ignore

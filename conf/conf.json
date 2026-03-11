@@ -2,7 +2,7 @@
     "config":[
         {
         "random_state":3,
-        "model":"lr",
+        "model":"rf",
         "scaling":"standard",
         "test_size":0.3,
         "epoch":1000,
@@ -13,49 +13,13 @@
         "n_tests":"false"
         }
     ],
-    "mlp_conf":[
-        {
-        "lr":0.01,
-        "optimalisation":"ADAM"
-        }
-    ],
-    "linear_regression_conf":[
-        {
-        "c":0.7,
-        "penalty":"l2",
-        "solver":"lbfgs"
-        }
-    ],
-    "knn_conf":[
-        {
-        "weights":"",
-        "algorithm":"",
-        "leaf_size":"",
-        "p":""
-        }
-    ],
-    "random_forest_conf":[
-        {
-        "n_estimators":"",
-        "criterion":"",
-        "max_depth":"",
-        "class_weight":""
-        }
-    ],
     "n_tests":[
         {
-        "conf1":["lr", 1, "l2", {"0":1.5, "1":1.0}],
-        "conf2":["lr", 0.1, "l2", {"0":1.5, "1":1.0}],
-        "conf3":["lr", 10, "l2", {"0":1.5, "1":1.0}],
-        "conf4":["lr", 1, "l2", "balanced"],
-        "conf5":["lr", 0.1, "l2", "balanced"],
-        "conf6":["lr", 10, "l2", "balanced"],
-        "conf7":["lr", 1, "l1", {"0":1.5, "1":1.0}],
-        "conf8":["lr", 0.1, "l1", {"0":1.5, "1":1.0}],
-        "conf9":["lr", 10, "l1", {"0":1.5, "1":1.0}],
-        "conf10":["lr", 1, "l1", "balanced"],
-        "conf11":["lr", 0.1, "l1", "balanced"],
-        "conf12":["lr", 10, "l1", "balanced"]
+        "lr1_none":["lr", 500, "None", 0.75, "l2", "lbfgs"],
+        "lr2_bala":["lr", 500, "balanced", 0.75, "l2", "lbfgs"],
+        "lr3_1_2":["lr", 500, {"0":1, "1":2}, 0.75, "l2", "lbfgs"],
+        "lr4_1_3":["lr", 500, {"0":1, "1":3}, 0.75, "l2", "lbfgs"],
+        "lr5_1_4":["lr", 500, {"0":1, "1":4}, 0.75, "l2", "lbfgs"]
         }
     ]
 }

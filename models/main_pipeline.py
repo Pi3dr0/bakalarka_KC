@@ -82,11 +82,8 @@ if __name__ == "__main__":
         data = json.load(file)
 
     config: dict = data["config"][0]
-    mlp_conf: dict = data["mlp_conf"][0]
-    linear_regression_conf: dict = data["linear_regression_conf"][0]
-    knn_conf: dict = data["knn_conf"][0]
-    random_forest_conf: dict = data["random_forest_conf"][0]
-    
+    model_configs: dict = data["n_tests"][0]
+
     ## Config <-----
     max_iter: int = config["epoch"]
     random_state: int = config["random_state"]
@@ -96,32 +93,8 @@ if __name__ == "__main__":
     class_weights = config["class_weight"]
     n_tests: str = config["n_tests"]
 
-    ## Neural Network <-----
-    lr: float = mlp_conf["lr"]
-    optimalisation: str = mlp_conf["optimalisation"]
-    output_dim: int = 1
-    input_dim: int = 57 #20 #58
-
-    ## Linear <-----
-    c: float = linear_regression_conf["c"]
-    penalty: str = linear_regression_conf["penalty"]
-    solver: str = linear_regression_conf["solver"]
-
-    ## Neighbours <-----
-    weights: str | None = knn_conf["weights"]
-    algorithm: str = knn_conf["algorithm"]
-    leaf_size: int = knn_conf["leaf_size"]
-    paaa: float = knn_conf["p"]
-
-    ## Random Forest <-----
-    n_estimators: int = random_forest_conf["n_estimators"]
-    criterion: str = random_forest_conf["criterion"]
-    max_depth: int = random_forest_conf["max_depth"]
-
     ## n_tests <-----
-    model_configs: dict = data["n_tests"][0]
     model_configs_fixed: dict = {}
-
     for test_name, params in model_configs.items():
         fixed_params: list = []
         for p in params:
@@ -129,6 +102,7 @@ if __name__ == "__main__":
                 p_fixed = {int(k): v for k, v in p.items()}
             else:
                 p_fixed = p
+            p_fixed = p_fixed if p_fixed != "None" else None
             fixed_params.append(p_fixed)
         model_configs_fixed[test_name] = fixed_params
     model_configs = model_configs_fixed
@@ -163,32 +137,34 @@ if __name__ == "__main__":
     for test_name, params in model_configs.items():
 
         model_type = params[0]
+        print(params)
+        print(params[2])
+        
+        if model_type == "lr":
+            model = lr_model(max_iter=params[1],
+                             random_state=random_state,
+                             class_weight=params[2],
+                             C=params[3],
+                             penalty=params[4],
+                             solver=params[5])
+        elif model_type == "mlp":
+            model = Wrapper_MLP(output_dim=1,
+                                lr=params[1],
+                                epochs=params[2])
+        elif model_type == "knn":
+            model = knn(n_neighbors=params[1],
+                        weights=params[2],
+                        algorithm=params[3],
+                        leaf_size=params[4],
+                        p=params[5])
+        elif model_type == "rf":
+            model = random_forest(n_estimators=params[1],
+                                  criterion=params[2],
+                                  max_depth=params[3],
+                                  class_weight=params[4])
+        else:
+            raise ValueError(f"Unknown model_type: {model_type}")
 
-        solver = "liblinear" if penalty == "l1" else "lbfgs"
-
-        ## preklad / vyber modelu
-        models_dict: dict = {
-            "lr": lr_model(max_iter=max_iter,
-                        random_state=random_state,
-                        class_weight=params[3],
-                        C=params[1],
-                        penalty=penalty,
-                        solver=solver),
-            "mlp": Wrapper_MLP(output_dim=output_dim,
-                            lr=lr,
-                            epochs=max_iter),
-            "knn": knn(weights=weights,
-                       algorithm=algorithm,
-                       leaf_size=leaf_size,
-                       p=paaa),
-            "rf": random_forest(n_estimators=n_estimators,
-                                criterion=criterion,
-                                max_depth=max_depth,
-                                class_weight=class_weights)
-        }
-
-        # aplikacia modelu
-        model = models_dict[model_type]
 
         """f2_score = make_scorer(fbeta_score, beta=2)
 
@@ -203,7 +179,7 @@ if __name__ == "__main__":
 
 
         ## Pipeline
-        if model_type == "mlp":
+        if model_type in ["mlp", "knn"]:
             pipeline = Pipeline([
                 ("scaler", scaler),
                 ("classifier", model)
