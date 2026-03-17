@@ -2,24 +2,25 @@
     "config":[
         {
         "random_state":3,
-        "model":"rf",
         "scaling":"standard",
         "test_size":0.3,
-        "epoch":1000,
         "feature_method":"rfe",
         "n_features_to_selection":20,
         "n_splits":9,
-        "class_weight":"balanced",
-        "n_tests":"false"
+        "threshold":0.3,
+        "calibration":"True",
+        "calibration_type":"isotonic",
+        "n_jobs":4
+        }
+    ],
+    "calibration":[
+        {
+        
         }
     ],
     "n_tests":[
         {
-        "lr1_none":["lr", 500, "None", 0.75, "l2", "lbfgs"],
-        "lr2_bala":["lr", 500, "balanced", 0.75, "l2", "lbfgs"],
-        "lr3_1_2":["lr", 500, {"0":1, "1":2}, 0.75, "l2", "lbfgs"],
-        "lr4_1_3":["lr", 500, {"0":1, "1":3}, 0.75, "l2", "lbfgs"],
-        "lr5_1_4":["lr", 500, {"0":1, "1":4}, 0.75, "l2", "lbfgs"]
+        "rf1_3_gi_n":["rf", 300, "gini", "None", "None", 2, 1, "sqrt"]
         }
     ]
 }

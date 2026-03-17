@@ -1,7 +1,6 @@
 import sys
 import json
 from pathlib import Path
-#sys.path.append(str(Path("../").resolve()))
 
 
 import pandas as pd
@@ -19,17 +18,15 @@ from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 
 
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import classification_report
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import fbeta_score
-from sklearn.metrics import make_scorer
-from sklearn.metrics import RocCurveDisplay
 from sklearn.metrics import roc_curve
 from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import PrecisionRecallDisplay
+from sklearn.metrics import precision_score
+from sklearn.metrics import recall_score
+from sklearn.metrics import fbeta_score
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import brier_score_loss
+
+from sklearn.calibration import CalibratedClassifierCV
 
 
 from sklearn.pipeline import Pipeline
@@ -40,20 +37,23 @@ from sklearn.feature_selection import SequentialFeatureSelector
 from sklearn.feature_selection import RFE
 
 
-from src.prerocessing import get_scalar
-from src.prerocessing import scale_df
-from src.models import lr_model
-from src.models import Wrapper_MLP
-from src.models import knn
-from src.models import random_forest
+from prerocessing import get_scalar
+from prerocessing import scale_df
+from models import lr_model         # type: ignore
+from models import Wrapper_MLP      # type: ignore
+from models import knn              # type: ignore
+from models import random_forest    # type: ignore
 
 
-from src.feature_selection import *
+from feature_selection import *
 
 
 ## ----- Funkcie -----
 
 def get_oof_score(pipeline, X, y, cv):
+    """
+    funkcia vracia Out-Of-Fold score
+    """
     predict_proba_result = cross_val_predict(
         estimator=pipeline,
         X=X,
@@ -85,13 +85,13 @@ if __name__ == "__main__":
     model_configs: dict = data["n_tests"][0]
 
     ## Config <-----
-    max_iter: int = config["epoch"]
     random_state: int = config["random_state"]
-    model_type: str = config["model"]
     n_features_to_selection: int = config["n_features_to_selection"]
     n_splits: int = config["n_splits"]
-    class_weights = config["class_weight"]
-    n_tests: str = config["n_tests"]
+    threshold: float = config["threshold"]
+    calibration: str = config["calibration"]
+    calibration_type: str = config["calibration_type"]
+
 
     ## n_tests <-----
     model_configs_fixed: dict = {}
@@ -131,37 +131,41 @@ if __name__ == "__main__":
     scaler = get_scalar(config["scaling"])
 
 
-    ### 
-    ### 
-    ###
+    ### =======================
+    ### ==== Training loop ====
+    ### =======================
     for test_name, params in model_configs.items():
 
         model_type = params[0]
-        print(params)
-        print(params[2])
+        print(test_name, params)
+        print("calibration type", calibration_type)
         
         if model_type == "lr":
-            model = lr_model(max_iter=params[1],
+            base_model = lr_model(max_iter=params[1],
                              random_state=random_state,
                              class_weight=params[2],
                              C=params[3],
                              penalty=params[4],
                              solver=params[5])
         elif model_type == "mlp":
-            model = Wrapper_MLP(output_dim=1,
+            base_model = Wrapper_MLP(output_dim=1,
                                 lr=params[1],
                                 epochs=params[2])
         elif model_type == "knn":
-            model = knn(n_neighbors=params[1],
+            base_model = knn(n_neighbors=params[1],
                         weights=params[2],
                         algorithm=params[3],
                         leaf_size=params[4],
                         p=params[5])
         elif model_type == "rf":
-            model = random_forest(n_estimators=params[1],
+            base_model = random_forest(n_estimators=params[1],
                                   criterion=params[2],
                                   max_depth=params[3],
-                                  class_weight=params[4])
+                                  class_weight=params[4],
+                                  min_samples_split=params[5],
+                                  min_samples_leaf=params[6],
+                                  max_features=params[7],
+                                  random_state=random_state)
         else:
             raise ValueError(f"Unknown model_type: {model_type}")
 
@@ -178,8 +182,21 @@ if __name__ == "__main__":
         }"""
 
 
+        # ===============================
+        # === Aplikovanie kalibracie ====
+        # ===============================
+        if calibration == "True":
+            model = CalibratedClassifierCV(
+                base_model,
+                method=calibration_type, # type: ignore
+                cv=n_splits
+            )
+        else:
+            model = base_model
+
+
         ## Pipeline
-        if model_type in ["mlp", "knn"]:
+        if model_type in ["mlp", "knn", "rf"]:
             pipeline = Pipeline([
                 ("scaler", scaler),
                 ("classifier", model)
@@ -207,11 +224,28 @@ if __name__ == "__main__":
                                 cv=cv,
                                 #scoring=eval_metrics
                                 )
-        
+
+
         y_scores = get_oof_score(pipeline=pipeline,
                                 X=X,
                                 y=y,
                                 cv=cv)
+        
+        # thresholds
+        y_pred = (y_scores >= threshold).astype(int)
+
+        acc = accuracy_score(y, y_pred)
+        precision_sc = precision_score(y, y_pred)
+        recall_sc = recall_score(y, y_pred)
+        f2 = fbeta_score(y, y_pred, beta=2)
+
+        print("Threshold:", threshold)
+        print("Accuracy:", acc)
+        print("Precision:", precision_sc)
+        print("Recall:", recall_sc)
+        print("F2:", f2)
+
+        
         fpr, tpr, _ = roc_curve(y, y_scores)
         precision, recall, _ = precision_recall_curve(y, y_scores)
 
