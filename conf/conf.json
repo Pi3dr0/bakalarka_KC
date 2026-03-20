@@ -9,7 +9,7 @@
         "n_splits":9,
         "threshold":0.3,
         "calibration":"True",
-        "calibration_type":"isotonic",
+        "calibration_type":"sigmoid",
         "n_jobs":4
         }
     ],
@@ -20,7 +20,7 @@
     ],
     "n_tests":[
         {
-        "rf1_3_gi_n":["rf", 300, "gini", "None", "None", 2, 1, "sqrt"]
+        "lr4s_c10":["lr", 500, "balanced", 10, "l2", "lbfgs"]
         }
     ]
 }

@@ -1,5 +1,7 @@
 import sys
 import json
+import joblib
+import os
 from pathlib import Path
 
 
@@ -7,24 +9,18 @@ import pandas as pd
 import numpy as np
 
 
-import matplotlib.pyplot as plt
-import seaborn as sb
-
-
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_validate
 from sklearn.model_selection import cross_val_predict
-from sklearn.model_selection import KFold
 from sklearn.model_selection import StratifiedKFold
 
 
-from sklearn.metrics import roc_curve
-from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import fbeta_score
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import brier_score_loss
+
 
 from sklearn.calibration import CalibratedClassifierCV
 
@@ -49,6 +45,26 @@ from feature_selection import *
 
 
 ## ----- Funkcie -----
+def save_test_results(test_name: str,
+                      model,
+                      y_true,
+                      y_proba,
+                      base_path: str):
+    """
+    Funkcia sluzi na ulozenie modelu, y_true a y_proba 
+    do adresara results
+    """
+    path: str = os.path.join(base_path, test_name)
+    os.makedirs(path, exist_ok=True)
+
+    # ulozenie modelu
+    joblib.dump(model, os.path.join(path, "model.pkl"))
+    
+    # ulozenie predikcii
+    np.save(os.path.join(path, "y_true.npy"), y_true)
+    np.save(os.path.join(path, "y_proba.npy"), y_proba)
+
+
 
 def get_oof_score(pipeline, X, y, cv):
     """
@@ -137,8 +153,6 @@ if __name__ == "__main__":
     for test_name, params in model_configs.items():
 
         model_type = params[0]
-        print(test_name, params)
-        print("calibration type", calibration_type)
         
         if model_type == "lr":
             base_model = lr_model(max_iter=params[1],
@@ -170,18 +184,6 @@ if __name__ == "__main__":
             raise ValueError(f"Unknown model_type: {model_type}")
 
 
-        """f2_score = make_scorer(fbeta_score, beta=2)
-
-        eval_metrics: dict = {
-            "accuracy": "accuracy",
-            "precision": "precision",
-            "recall": "recall",
-            "recall_weighted": "recall_weighted",
-            "roc_auc": "roc_auc",
-            "f2_score": f2_score
-        }"""
-
-
         # ===============================
         # === Aplikovanie kalibracie ====
         # ===============================
@@ -191,12 +193,15 @@ if __name__ == "__main__":
                 method=calibration_type, # type: ignore
                 cv=n_splits
             )
+            print(f"calibration: {calibration}")
         else:
             model = base_model
+            print("calibration: None")
+
 
 
         ## Pipeline
-        if model_type in ["mlp", "knn", "rf"]:
+        if model_type in ["mlp", "knn", "rf", "lr"]:
             pipeline = Pipeline([
                 ("scaler", scaler),
                 ("classifier", model)
@@ -207,7 +212,6 @@ if __name__ == "__main__":
                 ("feature_selection", RFE(
                     estimator=model,
                     n_features_to_select=n_features_to_selection
-
                 )),
                 ("classifier", model)
             ])
@@ -216,14 +220,11 @@ if __name__ == "__main__":
 
         cv = StratifiedKFold(n_splits=n_splits,
                             shuffle=True,
-                            random_state=random_state
-                            )
+                            random_state=random_state)
         predict_results = cross_validate(pipeline,
                                 X,
                                 y,
-                                cv=cv,
-                                #scoring=eval_metrics
-                                )
+                                cv=cv)
 
 
         y_scores = get_oof_score(pipeline=pipeline,
@@ -245,12 +246,14 @@ if __name__ == "__main__":
         print("Recall:", recall_sc)
         print("F2:", f2)
 
-        
-        fpr, tpr, _ = roc_curve(y, y_scores)
-        precision, recall, _ = precision_recall_curve(y, y_scores)
-
-        roc_results[test_name] = (fpr, tpr)
-        pr_results[test_name] = (precision, recall)
+        # ==========================
+        # ==== Ukladanie modelo ====
+        # ==========================
+        save_test_results(test_name=test_name,
+                          model=pipeline,
+                          y_true=y,
+                          y_proba=y_scores,
+                          base_path=f"results/{model_type}")
     
 
 
@@ -261,22 +264,6 @@ if __name__ == "__main__":
     PrecisionRecallDisplay(precision=precision,
                            recall=recall).plot()
     plt.show()"""
-
-    for name, (fpr, tpr) in roc_results.items():
-        plt.plot(fpr, tpr, label=name)
-    plt.xlabel("False Positve Rate (FPR)")
-    plt.ylabel("True Positive Rate (TPR)")
-    plt.title("ROC Curve")
-    plt.legend()
-    plt.show()
-
-    for name, (precision, recall) in pr_results.items():
-        plt.plot(recall, precision, label=name)
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
-    plt.title("Precision-Revall Curve")
-    plt.legend()
-    plt.show()
 
     #print(predict_results)
 

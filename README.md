@@ -26,3 +26,9 @@ priklad: “test1”:[”lr”, 123, “balanced”, 0.8, “lbfgs”, “l2”]
 **rf**: n_estimators, criterion, max_depth, class_weight, min_samples_split, min_samples_leaf, max_features
 
 **mlp**: lr, epochs, optimizer
+
+## Vyber kalibracnych metod
+
+**isotonic**:
+
+**sigmoid**
