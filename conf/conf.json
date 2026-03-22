@@ -20,7 +20,7 @@
     ],
     "n_tests":[
         {
-        "lr4s_c10":["lr", 500, "balanced", 10, "l2", "lbfgs"]
+        "rf6s_en_1":["rf", 300, "entropy", 10, "None", 2, 1, "sqrt"]
         }
     ]
 }
