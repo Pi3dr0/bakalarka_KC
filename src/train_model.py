@@ -15,18 +15,7 @@ from sklearn.model_selection import cross_val_predict
 from sklearn.model_selection import StratifiedKFold
 
 
-from sklearn.metrics import precision_score
-from sklearn.metrics import recall_score
-from sklearn.metrics import fbeta_score
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import brier_score_loss
-
-
 from sklearn.calibration import CalibratedClassifierCV
-
-
-from sklearn.pipeline import Pipeline
-from sklearn.pipeline import make_pipeline
 
 
 from sklearn.feature_selection import SequentialFeatureSelector
@@ -39,6 +28,11 @@ from models import lr_model         # type: ignore
 from models import Wrapper_MLP      # type: ignore
 from models import knn              # type: ignore
 from models import random_forest    # type: ignore
+
+
+from imblearn.pipeline import Pipeline
+
+from imblearn.over_sampling import SMOTE
 
 
 from feature_selection import *
@@ -86,7 +80,7 @@ if __name__ == "__main__":
     ### ======================
     ### ==== Load dataset ====
     ### ======================
-    df_path: str = "data/clean_ds.xlsx"
+    df_path: str = "./data/processed/clean_ds.xlsx"
     df = pd.read_excel(df_path)
 
 
@@ -107,6 +101,7 @@ if __name__ == "__main__":
     threshold: float = config["threshold"]
     calibration: str = config["calibration"]
     calibration_type: str = config["calibration_type"]
+    upsampling: str = config["upsampling"]
 
 
     ## n_tests <-----
@@ -184,35 +179,32 @@ if __name__ == "__main__":
             raise ValueError(f"Unknown model_type: {model_type}")
 
 
-        # ===============================
-        # === Aplikovanie kalibracie ====
-        # ===============================
+        # nastavenie kalibracie
+        print("calibration:", calibration)
         if calibration == "True":
+            print(f"calibration type:", calibration_type)
             model = CalibratedClassifierCV(
                 base_model,
                 method=calibration_type, # type: ignore
                 cv=n_splits
-            )
-            print(f"calibration: {calibration}")
+            )      
         else:
             model = base_model
-            print("calibration: None")
 
 
-
-        ## Pipeline
-        if model_type in ["mlp", "knn", "rf", "lr"]:
+        # ===========================
+        # === Skladanie pipeliny ====
+        # ===========================
+        print("upsampling:", upsampling)
+        if upsampling == "True":
             pipeline = Pipeline([
                 ("scaler", scaler),
+                ("oversample", SMOTE(random_state=random_state)),
                 ("classifier", model)
             ])
         else:
             pipeline = Pipeline([
                 ("scaler", scaler),
-                ("feature_selection", RFE(
-                    estimator=model,
-                    n_features_to_select=n_features_to_selection
-                )),
                 ("classifier", model)
             ])
 
@@ -231,20 +223,7 @@ if __name__ == "__main__":
                                 X=X,
                                 y=y,
                                 cv=cv)
-        
-        # thresholds
-        y_pred = (y_scores >= threshold).astype(int)
 
-        acc = accuracy_score(y, y_pred)
-        precision_sc = precision_score(y, y_pred)
-        recall_sc = recall_score(y, y_pred)
-        f2 = fbeta_score(y, y_pred, beta=2)
-
-        print("Threshold:", threshold)
-        print("Accuracy:", acc)
-        print("Precision:", precision_sc)
-        print("Recall:", recall_sc)
-        print("F2:", f2)
 
         # ==========================
         # ==== Ukladanie modelo ====
@@ -254,30 +233,3 @@ if __name__ == "__main__":
                           y_true=y,
                           y_proba=y_scores,
                           base_path=f"results/{model_type}")
-    
-
-
-    """fpr, tpr, roc_threshold = roc_curve(y, y_scores)
-    precision, recall, pr_threshold = precision_recall_curve(y, y_scores)
-    RocCurveDisplay(fpr=fpr, tpr=tpr).plot()
-    plt.show()
-    PrecisionRecallDisplay(precision=precision,
-                           recall=recall).plot()
-    plt.show()"""
-
-    #print(predict_results)
-
-    ## Evaluacia
-    """acc = predict_results["test_accuracy"].mean() * 100
-    prec = predict_results["test_precision"].mean() * 100
-    rec = predict_results["test_recall"].mean() * 100
-    rec_weig = predict_results["test_recall_weighted"].mean() * 100
-    roc_auc = predict_results["test_roc_auc"].mean() * 100
-    f2_sc = predict_results["test_f2_score"].mean() * 100
-
-    print(f"Accuracy: {acc:.2f}%")
-    print(f"Precision: {prec:.2f}%")
-    print(f"Recall: {rec:.2f}%")
-    print(f"Recall Weighted: {rec_weig:.2f}%")
-    print(f"ROC AUC: {roc_auc:.2f}%")
-    print(f"f2 score: {f2_sc:.2f}%")"""

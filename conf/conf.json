@@ -10,7 +10,8 @@
         "threshold":0.3,
         "calibration":"True",
         "calibration_type":"sigmoid",
-        "n_jobs":4
+        "n_jobs":4,
+        "upsampling":"True"
         }
     ],
     "calibration":[
@@ -20,7 +21,7 @@
     ],
     "n_tests":[
         {
-        "rf6s_en_1":["rf", 300, "entropy", 10, "None", 2, 1, "sqrt"]
+        "lr4Us_c10":["lr", 500, "balanced", 10, "l2", "lbfgs"]
         }
     ]
 }
